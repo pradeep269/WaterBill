@@ -67,48 +67,40 @@ def display_water_bill():
         return f'<h1>Error reading Excel file:</h1><p>{str(e)}</p>'
 
 
-@app.route('/get_amount', methods=['GET', 'POST'])
+@app.route('/get_amount', methods=['GET'])
 def get_amount():
     file_path = 'attached_assets/WaterBill_1752726609979.xlsx'
     if not os.path.exists(file_path):
         return '<h1>Error: File not found</h1>'
 
-    if request.method == 'POST':
-        mob_value = request.form.get('mob')  # Get 'mob' parameter from form data
+    try:
+        df = pd.read_excel(file_path)  # Read the first sheet
+        data = []
+        for index, row in df.iterrows():
+            try:
+                data.append({
+                    'Mob': str(row['Mob']),
+                    'Amount': str(row['Amount'])
+                })
+            except KeyError as e:
+                print(f"Missing column: {e}")
+                return f"Error: Missing column in Excel file: {e}"
 
-        try:
-            df = pd.read_excel(file_path)  # Read the first sheet
-            data = []
-            for index, row in df.iterrows():
-                try:
-                    data.append({
-                        'Mob': str(row['Mob']),
-                        'Amount': str(row['Amount'])
-                    })
-                except KeyError as e:
-                    print(f"Missing column: {e}")
-                    return f"Error: Missing column in Excel file: {e}"
+        mob_value = request.args.get(
+            'mob')  # Get 'mob' parameter from query string
 
-            if mob_value:
-                # Match input with data to return the corresponding Amount
-                for entry in data:
-                    if entry['Mob'] == mob_value:
-                        return f'Amount for {mob_value}: {entry["Amount"]}'
-                return f'No data found for Mob: {mob_value}'
-            else:
-                return 'Please provide a "mob" value.'
-                
-        except Exception as e:
-            return f'<h1>Error:</h1><p>{str(e)}</p>'
+        if mob_value:
+            # Match input with data to return the corresponding Amount
+            for entry in data:
+                if entry['Mob'] == mob_value:
+                    return f'Amount for {mob_value}: {entry["Amount"]}'
+            return f'No data found for Mob: {mob_value}'
+        else:
+            return 'Please provide a "mob" query parameter.'
 
-    # HTML form to get the Mob input
-    return '''
-    <form method="POST">
-        <label for="mob">Enter Mob Number:</label>
-        <input type="text" id="mob" name="mob" required>
-        <input type="submit" value="Submit">
-    </form>
-    '''
+    except Exception as e:
+        return f'<h1>Error:</h1><p>{str(e)}</p>'
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
